@@ -1,0 +1,236 @@
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Plant</title>
+	<style>
+		body {
+			background-color: black;
+			color: white;
+			font-family: sans-serif;
+		}
+		#percentBar {
+			margin-top: 10px;
+			width: 10%;
+			height: 70vh;
+			border: 5px solid white;
+			border-radius: 25px;
+			float: left;
+			background-color: #00b6d6;
+			overflow: hidden;
+		}
+		#waterLevel { /* black covering the blue */
+			width: 100%;
+			height: 50%;
+			border-radius: 25px, 25px, 10px, 10px;
+			background-color: black;
+		}
+		#other {
+			position: relative;
+			text-align: center;
+			height: 100%;
+			float: left;
+			padding: 10px;
+			width: 85%;
+		}
+		#mainContainer {
+			margin: 0 auto;
+			width: 850px;
+		}
+		.topInfoContainer {
+			display: inline-block;
+			width: 49.6%;
+			font-size: 30px;
+			} .topInfoContainer > span:nth-child(3) {
+				font-size: 120px;
+			}
+
+		.mainButtons {
+			color: black;
+			border: 1px solid white;
+			background-color: #FFF;
+			cursor: pointer;
+			height: 150px;
+			width: 49.6%;
+			font-size: 40px;
+		}
+		.expand {
+			width: 100%;
+			height: 50px;
+			cursor: pointer;
+		}
+		#settings {
+			width: 100%;
+			display: none;		
+		}
+		.subsettings {
+			text-align: center;
+			width: 49.6%;
+			float: left;
+		}
+		input[type="radio"] {
+			width: 30px;
+			height: 30px;
+		}
+		input[type="number"] {
+			width: 60px;
+			height: 30px;
+			font-size: 30px;
+		}
+		input[type="time"] {
+			height: 30px;
+			font-size: 20px;
+		}
+		label {
+			font-size: 30px;
+		}
+		h2 {
+			font-size: 40px;
+		}
+		h3 {
+			font-size: 30px;
+		}
+		</style>
+	</head>
+
+	<body> 
+		<div id="mainContainer">
+			<div id="percentBar">
+				<div id="waterLevel" style="height: 31%;"></div>
+			</div>
+			<div id="other">
+				<h1>Plant and Such</h1>
+
+				<div class="topInfoContainer">
+					<span>saturation</span><br>
+					<span id="saturation">--%</span>
+					
+				</div>
+				<div class="topInfoContainer">
+					<span>lights</span><br>
+					<span id="lights">OFF</span>
+				</div>
+				
+				<button class="mainButtons" onclick="send_request('water')">Your plant thirsts, quench him</button>
+				<button class="mainButtons" onclick="send_request('light')">Toggle Grow Lights</button>
+				<button class="mainButtons" style="width: 100%; margin-top: 5px" onclick="send_request('updateLevel')">Refresh</button>
+				<br>
+				<h2>Your plant was last watered</h2>
+				<h3 id="lastWatering">21 Jun 2020 16:06</h3>
+				<br>
+				<h2>This page was last updated</h2>
+				<h3 id="lastUpdate">21 Jun 2020 16:49</h3>
+				<button class="expand" onclick="show_settings()">Expand settings</button>
+				<div id="settings">
+					<form id="settingsForm">
+						<div class="subsettings">
+							<h3>Lights</h3>
+
+							<input type="radio" name="auto_light" value="Auto" id="al">
+							<label>Auto</label>
+							<input type="radio" name="auto_light" value="manual" id="ml">
+							<label>Manual</label><br>
+
+							<label>Turn on: </label><input type="time" name="lights_on" step="1" id="on"><br>
+							<label>Turn off: </label><input type="time" name="lights_off" step="1" id="off"><br>
+						</div>
+
+						<div class="subsettings">
+							<h3>Watering</h3>
+
+							<input type="radio" name="auto_water" value="auto" id="aw">
+							<label>Auto</label>
+							<input type="radio" name="auto_water" value="manual" id="mw">
+							<label>Manual</label><br>
+
+							<label>Lower Threshold: </label><input type="number" name="lower" min="0" max="100" id="lt"> %<br>
+							<label>Pump On-Time: </label><input type="number" name="pump" min="1" max="10" id="pump"> Secs<br>
+						</div>
+                        <br>
+						<input type="checkbox" id="waterWhenLight"><label>Water only while lights on</label><br>
+						<input type="button" onclick="save_settings()" value="Submit changes" style="width:75%;height:50px;">
+					</form>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			function show_settings() {
+                var x = new XMLHttpRequest();
+				x.open('GET', 'load_settings');
+				x.send();
+
+				x.onload = function() {
+                    var settings = x.response.trim('\r\n').split(',');
+                    
+                    //AutoLights, OnTime, OffTime, AutoWater, LowThresh, UpThresh, PumpTime
+                    if (settings[0] == "True") {
+                        document.getElementById('al').checked = true;
+                    } else {
+                        document.getElementById('ml').checked = true;
+                    }
+                    
+                    document.getElementById('on').value = settings[1];
+                    document.getElementById('off').value = settings[2];
+                    
+                    if (settings[3] == "True") {
+                        document.getElementById('aw').checked = true;
+                    } else {
+                        document.getElementById('mw').checked = true;
+                    }
+                    
+                    document.getElementById('lt').value = parseInt(settings[4]);
+                    document.getElementById('waterWhenLight').checked = settings[5] == "True";
+                    document.getElementById('pump').value = parseInt(settings[6]);
+                    
+                    s = document.getElementById("settings");
+                    s.style.display = s.style.display == "block" ? "none" : "block";
+				};
+
+			}
+
+			function save_settings() {
+				var x = new XMLHttpRequest();
+				x.open('POST', 'save_settings');
+                var auto_light = document.getElementById('al').checked
+                var turn_on_time = document.getElementById('on').value;
+                var turn_off_time = document.getElementById('off').value;
+                var auto_watering = document.getElementById('aw').checked
+                var lower_thresh = document.getElementById('lt').value;
+                var water_when_light = document.getElementById('waterWhenLight').checked;
+                var pump = document.getElementById('pump').value;
+                var data = auto_light + "," + turn_on_time + "," + turn_off_time +
+                            "," + auto_watering + "," + lower_thresh + "," + water_when_light + "," + pump;
+                            
+                x.send(data);
+                s.style.display = "none";
+			}
+
+			function send_request(request) {
+				var x = new XMLHttpRequest();
+				x.open('GET', request);
+				x.send();
+
+				x.onload = function() {
+					updateHTML(x);
+				};
+			}
+
+			function updateHTML(x) {
+				console.log(x.response);
+				var saturation_level = x.response.split(",")[0]
+				var light_on = x.response.split(",")[1]
+				var update_time = x.response.split(",")[2]
+				var last_watering = x.response.split(",")[3]
+				document.getElementById('saturation').innerHTML = saturation_level + "%";
+				document.getElementById('lights').innerHTML = (light_on == "True" ? "ON" : "OFF");
+				document.getElementById('waterLevel').style.height = (100-parseInt(saturation_level)) + '%'
+				document.getElementById('lastUpdate').innerHTML = update_time;
+				document.getElementById('lastWatering').innerHTML = last_watering;
+			}
+
+			window.onload = send_request('currentLevel');
+		</script>
+	</body>
+</html>
+
+

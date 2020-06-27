@@ -1,0 +1,27 @@
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Graphs</title>
+	</head>
+	<body>
+		<select id="time" name="time">
+			<option value="48">Last 48hrs</option>
+			<option value="week">Last Week</option>
+			<option value="month">Last Month</option>
+			<option value="all">All</option>
+		</select>
+		<br>
+		<!--<img src="satgraph.svg" style="height:100vh">-->
+		<img id="graph">
+	</body>
+	<script>
+		function change_timeframe() {
+			var x = new XMLHttpRequest();
+			x.open('GET', 'request_graph');
+            var data = document.getElementById("time").value;            
+            x.send(data);
+		}
+		
+		window.onload = change_timeframe();
+	</script>
+</html>
