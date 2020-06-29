@@ -5,23 +5,29 @@
 	</head>
 	<body>
 		<select id="time" name="time">
-			<option value="48">Last 48hrs</option>
-			<option value="week">Last Week</option>
-			<option value="month">Last Month</option>
-			<option value="all">All</option>
+			<option value="HRS">Last 48hrs</option>
+			<option value="WEEK">Last Week</option>
+			<option value="MONTH">Last Month</option>
+			<option value="ALL">All</option>
 		</select>
+		<button type="submit" onclick="change_timeframe()">Submit</button>
+		<span id="processing" style="display:none">processing...</span>
 		<br>
-		<!--<img src="satgraph.svg" style="height:100vh">-->
 		<img id="graph">
 	</body>
 	<script>
 		function change_timeframe() {
+			document.getElementById("processing").style="display:inline-block";
 			var x = new XMLHttpRequest();
-			x.open('GET', 'request_graph');
-            var data = document.getElementById("time").value;            
+			x.open('POST', 'request_graph');
+            var data = document.getElementById("time").value;       
             x.send(data);
+            
+            x.onload = function() {
+				console.log(x.response);
+				document.getElementById("graph").src = "satgraph.svg?" + new Date().getTime();
+				document.getElementById("processing").style="display:none";
+			};
 		}
-		
-		window.onload = change_timeframe();
 	</script>
 </html>

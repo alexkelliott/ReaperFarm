@@ -41,10 +41,9 @@ last_update = datetime(1970, 1, 1)
 last_watering = datetime(1970, 1, 1)
 light_on = False
 
-
-###################
-# User parameters #
-###################
+#################
+# User Settings #
+#################
 log_time = 15 # minutes in between automatic saturation check and logging
 auto_lights = False
 turn_lights_on_time = "10:00:00"
@@ -129,10 +128,13 @@ def send_settings_to_browser(sock):
     
     
 def load_settings_from_file():
-    f = open("settings.dat", 'r')
-    settings = f.read().split(',')
-    f.close()
-    update_settings(settings, False)
+    try:
+        f = open("settings.dat", 'r')
+        settings = f.read().split(',')
+        update_settings(settings, False)
+        f.close()
+    except:
+        pass
 
 
 #Appends current stats to data.csv
@@ -155,7 +157,7 @@ def send_file_to_browser(sock, filename):
     f.close()
     sock.send("HTTP/1.1 200 OK\r\n\r\n".encode('utf-8'))
     
-    for i in range(0, len(outputdata)):  
+    for i in range(len(outputdata)):  
         sock.send(outputdata[i].encode('utf-8'))
     sock.send("\r\n".encode('utf-8'))
 
@@ -167,6 +169,7 @@ def server_handler():
         try:
             message = connectionSocket.recv(1024)
             action = "empty" if len(message.split()) < 2 else message.split()[1]
+            action = action.split('?')[0] #don't consider anything after a ? in a request
 
             if action == b'/water':
                 water()
@@ -199,9 +202,8 @@ def server_handler():
                 send_file_to_browser(connectionSocket, 'satgraph.svg')
                 
             elif action == b'/request_graph':
-                print("/request_graph received")
-                graphs.saturation_graph()
-                send_file_to_browser(connectionSocket, 'satgraph.svg')
+                graphs.saturation_graph(message.split()[-1])
+                connectionSocket.send("HTTP/1.1 200 OK\r\n\r\n\r\n".encode('utf-8'))
 
             else:
                 send_file_to_browser(connectionSocket, 'index.html')
