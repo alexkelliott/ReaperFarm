@@ -123,11 +123,26 @@ def send_settings_to_browser(sock):
     sock.send("\r\n".encode('utf-8'))
     
     
-def load_settings_from_file():
+def load_settings_and_dates_from_file():
     try:
         f = open("settings.dat", 'r')
         settings = f.read().split(',')
         update_settings(settings, False)
+        f.close()
+    except:
+        pass
+        
+        
+    #TODO: make implementation not have to read every line
+    try:
+        f = open("data.csv", 'r')
+        for entry in reversed(list(f)):
+            entry = entry.split(',')
+            if(entry[2].strip() == "True"):
+                global last_watering
+                last_watering = datetime.strptime(entry[0], '%d/%m/%Y %H:%M')
+                break
+                
         f.close()
     except:
         pass
@@ -204,7 +219,6 @@ def server_handler(server_socket):
             else:
                 send_file_to_browser(connection_socket, 'index.html')
 
-        		
             connection_socket.close()
 
         except IOError:
@@ -229,11 +243,10 @@ if __name__ == "__main__":
     server_thread = threading.Thread(target=server_handler, args=(server_sock,))
     server_thread.start()
     
-    #load last saved settings
-    load_settings_from_file()
+    #load last saved settings and last water / refresh dates
+    load_settings_and_dates_from_file()
     
     try:
-        update_saturation()
         while True:
             
             #Update saturation every log_time minutes
