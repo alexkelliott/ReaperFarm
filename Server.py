@@ -1,5 +1,6 @@
 import socket
-import sys    
+import sys
+import argparse 
 import random
 from datetime import datetime
 import threading
@@ -8,11 +9,6 @@ import RPi.GPIO as GPIO
 import Adafruit_GPIO.SPI as SPI
 import Adafruit_MCP3008
 import graphs
-
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server_socket.bind(('10.0.0.6', 12000))
-server_socket.listen(2)
 
 ################
 # Pi Variables #
@@ -162,63 +158,75 @@ def send_file_to_browser(sock, filename):
     sock.send("\r\n".encode('utf-8'))
 
 
-def server_handler():
+def server_handler(server_socket):
     while True:
-        connectionSocket, addr = server_socket.accept()
+        connection_socket, addr = server_socket.accept()
 
         try:
-            message = connectionSocket.recv(1024)
+            message = connection_socket.recv(1024)
             action = "empty" if len(message.split()) < 2 else message.split()[1]
             action = action.split('?')[0] #don't consider anything after a ? in a request
 
             if action == b'/water':
                 water()
-                send_data_to_browser(connectionSocket)
+                send_data_to_browser(connection_socket)
 
             elif action == b'/updateLevel':
                 update_saturation()
-                send_data_to_browser(connectionSocket)
+                send_data_to_browser(connection_socket)
 
             elif action == b'/currentLevel':
-                send_data_to_browser(connectionSocket)
+                send_data_to_browser(connection_socket)
                 
             elif action == b'/light':
                 change_light(0)
-                send_data_to_browser(connectionSocket)
+                send_data_to_browser(connection_socket)
                 
             elif action == b'/save_settings':
                 update_settings((message.split()[-1]).split(','))
                 
             elif action == b'/load_settings':
-                send_settings_to_browser(connectionSocket)
+                send_settings_to_browser(connection_socket)
                 
             elif action == b'/logs':
-                send_file_to_browser(connectionSocket, 'data.csv')
+                send_file_to_browser(connection_socket, 'data.csv')
                 
             elif action == b'/graphs':
-                send_file_to_browser(connectionSocket, 'graphs.html')
+                send_file_to_browser(connection_socket, 'graphs.html')
                 
             elif action == b'/satgraph.svg':
-                send_file_to_browser(connectionSocket, 'satgraph.svg')
+                send_file_to_browser(connection_socket, 'satgraph.svg')
                 
             elif action == b'/request_graph':
                 graphs.saturation_graph(message.split()[-1])
-                connectionSocket.send("HTTP/1.1 200 OK\r\n\r\n\r\n".encode('utf-8'))
+                connection_socket.send("HTTP/1.1 200 OK\r\n\r\n\r\n".encode('utf-8'))
 
             else:
-                send_file_to_browser(connectionSocket, 'index.html')
+                send_file_to_browser(connection_socket, 'index.html')
 
         		
-            connectionSocket.close()
+            connection_socket.close()
 
         except IOError:
-            connectionSocket.close()
+            connection_socket.close()
     
     server_socket.close()  
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
+    p = argparse.ArgumentParser()
+    p.add_argument("--host", action="store", dest="host", help="default 127.0.0.1")
+    p.add_argument("--port", action="store", dest="port", type=int, help="default 12000")
+    args = p.parse_args()
+    host = args.host if args.host is not None else "127.0.0.1"
+    port = args.port if args.port is not None else 12000
+    
+    server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_sock.bind((host, port))
+    server_sock.listen(2)
+
     #Start threads
-    server_thread = threading.Thread(target=server_handler, args=())
+    server_thread = threading.Thread(target=server_handler, args=(server_sock,))
     server_thread.start()
     
     #load last saved settings
@@ -255,7 +263,7 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
         #close all threads
-        server_socket.close()
+        server_sock.close()
         server_thread.join()
         
         #Turn off all appliances
