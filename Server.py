@@ -101,13 +101,13 @@ def update_saturation():
 def update_settings(settings, update_file=True):
     #AutoLights, OnTime, OffTime, AutoWater, LowThresh, UpThresh, PumpTime
     global auto_lights, turn_lights_on_time, turn_lights_off_time, auto_watering, lower_sat_bound, water_when_light, pump_on_time
-    auto_lights = settings[0] == "true"
+    auto_lights = settings[0].lower() == "true"
     turn_lights_on_time = settings[1]
     turn_lights_off_time = settings[2]
-    auto_watering = settings[3] == "true"
+    auto_watering = settings[3].lower() == "true"
     if (0 <= int(settings[4]) <= 100):
         lower_sat_bound = int(settings[4])
-    water_when_light = settings[5] == "true"
+    water_when_light = settings[5].lower() == "true"
     pump_on_time = int(settings[6]) if (0 < int(settings[6]) < 10) else pump_on_time
 
     if (update_file):
