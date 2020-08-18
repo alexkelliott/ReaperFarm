@@ -9,6 +9,7 @@ import RPi.GPIO as GPIO
 import Adafruit_GPIO.SPI as SPI
 import Adafruit_MCP3008
 import graphs
+import json
 
 ################
 # Pi Variables #
@@ -41,13 +42,23 @@ light_on = False
 # User Settings #
 #################
 log_time = 15 # minutes in between automatic saturation check and logging
-auto_lights = False
-turn_lights_on_time = "10:00:00"
-turn_lights_off_time = "23:00:00"
-auto_watering = False
-lower_sat_bound = 50.0 #threshold for determining if the plant needs to be watered
-water_when_light = True #only automatically water if the light is on
-pump_on_time = 3 # seconds the pump is turned on for at a time
+settings = {
+    "auto_lights": False,
+    "turn_lights_on_time" : "10:00:00", 
+    "turn_lights_off_time" : "23:00:00",
+    "auto_watering" : "man",
+    "lower_sat_bound": 50.0, #threshold for determining if the plant needs to be watered
+    "water_when_light": True, #only automatically water if the light is on
+    "pump_on_time": 3 #seconds the pump is turned on for at a time
+}
+#auto_lights = False
+#turn_lights_on_time = "10:00:00"
+#turn_lights_off_time = "23:00:00"
+#auto_watering = "man"
+#lower_sat_bound = 50.0 #threshold for determining if the plant needs to be watered
+#water_time = "12:00:00" #time plant gets watered if time-based watering is selected
+#water_when_light = True #only automatically water if the light is on
+#pump_on_time = 3 #seconds the pump is turned on for at a time
 
 
 #code for handling the actual watering of the plant goes here
@@ -55,7 +66,7 @@ def water():
     #water the plant
     #Because of this relay, pulling the pin LOW turns the device ON
     GPIO.output(motor_pin, GPIO.LOW)
-    time.sleep(pump_on_time)
+    time.sleep(settings["pump_on_time"])
     GPIO.output(motor_pin, GPIO.HIGH)
 
     #update records
@@ -98,35 +109,27 @@ def update_saturation():
 
 
 #Takes an array of settings an updates vars and (optionally) csv
-def update_settings(settings, update_file=True):
-    #AutoLights, OnTime, OffTime, AutoWater, LowThresh, UpThresh, PumpTime
-    global auto_lights, turn_lights_on_time, turn_lights_off_time, auto_watering, lower_sat_bound, water_when_light, pump_on_time
-    auto_lights = settings[0].lower() == "true"
-    turn_lights_on_time = settings[1]
-    turn_lights_off_time = settings[2]
-    auto_watering = settings[3].lower() == "true"
-    if (0 <= int(settings[4]) <= 100):
-        lower_sat_bound = int(settings[4])
-    water_when_light = settings[5].lower() == "true"
-    pump_on_time = int(settings[6]) if (0 < int(settings[6]) < 10) else pump_on_time
+def update_settings(new_settings, update_file=True):
+    global settings
+    
+    if (0 > new_settings["lower_sat_bound"] or new_settings["lower_sat_bound"] > 100):
+        new_settings["lower_sat_bound"] = settings["lower_sat_bound"]
+        
+    if (new_settings["pump_on_time"] < 0 or new_settings["pump_on_time"] > 10):
+        new_settings["pump_on_time"] = settings["pump_on_time"]
+
+    settings = new_settings
 
     if (update_file):
         f = open("settings.dat", 'w')
-        f.write(str(auto_lights) + "," + str(turn_lights_on_time) + "," + str(turn_lights_off_time) + "," + str(auto_watering) + "," + str(lower_sat_bound) + "," + str(water_when_light) + "," + str(pump_on_time))
+        f.write(json.dumps(settings))
         f.close()
-
-
-def send_settings_to_browser(sock):
-    sock.send("HTTP/1.1 200 OK\r\n\r\n".encode('utf-8'))
-    data = str(auto_lights) + "," + str(turn_lights_on_time) + "," + str(turn_lights_off_time) + "," + str(auto_watering) + "," + str(lower_sat_bound) + "," + str(water_when_light) + "," + str(pump_on_time)
-    sock.send(data.encode('utf-8'))
-    sock.send("\r\n".encode('utf-8'))
     
     
 def load_settings_and_dates_from_file():
     try:
         f = open("settings.dat", 'r')
-        settings = f.read().split(',')
+        loaded_settings = json.loads(f.read())
         update_settings(settings, False)
         f.close()
     except:
@@ -198,10 +201,10 @@ def server_handler(server_socket):
                 send_data_to_browser(connection_socket)
                 
             elif action == b'/save_settings':
-                update_settings((message.split()[-1]).split(','))
+                update_settings(json.loads((message.split()[-1])))
                 
             elif action == b'/load_settings':
-                send_settings_to_browser(connection_socket)
+                send_file_to_browser(connection_socket, 'settings.dat')
                 
             elif action == b'/logs':
                 send_file_to_browser(connection_socket, 'data.csv')
@@ -254,17 +257,26 @@ if __name__ == "__main__":
             if(dif.seconds // 60 >= log_time):
                 update_saturation()
                 
-                #Water plant if saturation too low
-                if(auto_watering and current_saturation < lower_sat_bound):
-                    if (not water_when_light or light_on):
-                        water()
-                        update_saturation()
+            #Water plant if saturation too low
+            if(settings["auto_watering"] == "sat" and current_saturation < settings["lower_sat_bound"]):
+                if (not settings["water_when_light"] or light_on):
+                    water()
+                    update_saturation()
+                    
+            #Water plant if time is right
+            if (settings["auto_watering"] == "time"):
+                current_time = datetime.strptime(datetime.now().strftime("%H:%M:%S"), '%H:%M:%S')
+                time_to_water = datetime.strptime(settings["water_time"], '%H:%M:%S')
+                
+                if (-(settings["pump_on_time"]) < (time_to_water - current_time).total_seconds() <= 0):
+                    water()
+                    update_saturation()
                     
             #Test for auto changing the lights
-            if (auto_lights):
+            if (settings["auto_lights"]):
                 current_time = datetime.strptime(datetime.now().strftime("%H:%M:%S"), '%H:%M:%S')
-                target_off_time = datetime.strptime(turn_lights_off_time, '%H:%M:%S')
-                target_on_time = datetime.strptime(turn_lights_on_time, '%H:%M:%S')
+                target_off_time = datetime.strptime(settings["turn_lights_off_time"], '%H:%M:%S')
+                target_on_time = datetime.strptime(settings["turn_lights_on_time"], '%H:%M:%S')
 
                 if (-10 <= (target_off_time - current_time).total_seconds() <= 0):
                     change_light(-1) #Off

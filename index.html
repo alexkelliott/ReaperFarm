@@ -137,12 +137,15 @@
 						<div class="subsettings">
 							<h3>Watering</h3>
 
-							<input type="radio" name="auto_water" value="auto" id="aw">
-							<label>Auto</label>
+							<input type="radio" name="auto_water" value="satbased" id="sb">
+							<label>Saturation-Based</label><br>
+							<input type="radio" name="auto_water" value="timebased" id="tb">
+							<label>Time-Based</label><br>
 							<input type="radio" name="auto_water" value="manual" id="mw">
 							<label>Manual</label><br>
 
-							<label>Lower Threshold: </label><input type="number" name="lower" min="0" max="100" id="lt"> %<br>
+							<label>Watering Threshold: </label><input type="number" name="lower" min="0" max="100" id="lt"> %<br>
+							<label>Water Time</label><input type="time" name="watertime" step="1" id="wt"><br>
 							<label>Pump On-Time: </label><input type="number" name="pump" min="1" max="10" id="pump"> Secs<br>
 						</div>
                         <br>
@@ -160,27 +163,32 @@
 				x.send();
 
 				x.onload = function() {
-                    var settings = x.response.trim('\r\n').split(',');
-                    
-                    //AutoLights, OnTime, OffTime, AutoWater, LowThresh, UpThresh, PumpTime
-                    if (settings[0] == "True") {
+                    var settings = JSON.parse(x.response.trim('\r\n'));
+                    console.log(settings);
+                    if (settings["auto_lights"]) {
                         document.getElementById('al').checked = true;
                     } else {
                         document.getElementById('ml').checked = true;
                     }
                     
-                    document.getElementById('on').value = settings[1];
-                    document.getElementById('off').value = settings[2];
+                    document.getElementById('on').value = settings["turn_lights_on_time"];
+                    document.getElementById('off').value = settings["turn_lights_off_time"];
                     
-                    if (settings[3] == "True") {
-                        document.getElementById('aw').checked = true;
-                    } else {
-                        document.getElementById('mw').checked = true;
-                    }
-                    
-                    document.getElementById('lt').value = parseInt(settings[4]);
-                    document.getElementById('waterWhenLight').checked = settings[5] == "True";
-                    document.getElementById('pump').value = parseInt(settings[6]);
+					switch(settings["auto_watering"]){
+						case "sat":
+							document.getElementById('sb').checked = true;
+							break;
+						case "time":
+							document.getElementById('tb').checked = true;
+							break;
+						default:
+							document.getElementById('mw').checked = true;	
+					}
+
+                    document.getElementById('lt').value = settings["lower_sat_bound"];
+					document.getElementById('wt').value = settings["water_time"];
+                    document.getElementById('waterWhenLight').checked = settings["water_when_light"] == "True";
+                    document.getElementById('pump').value = settings["pump_on_time"];
                     
                     s = document.getElementById("settings");
                     s.style.display = s.style.display == "block" ? "none" : "block";
@@ -191,17 +199,24 @@
 			function save_settings() {
 				var x = new XMLHttpRequest();
 				x.open('POST', 'save_settings');
-                var auto_light = document.getElementById('al').checked
-                var turn_on_time = document.getElementById('on').value;
-                var turn_off_time = document.getElementById('off').value;
-                var auto_watering = document.getElementById('aw').checked
-                var lower_thresh = document.getElementById('lt').value;
-                var water_when_light = document.getElementById('waterWhenLight').checked;
-                var pump = document.getElementById('pump').value;
-                var data = auto_light + "," + turn_on_time + "," + turn_off_time +
-                            "," + auto_watering + "," + lower_thresh + "," + water_when_light + "," + pump;
+				var settings = {
+					"auto_lights": document.getElementById('al').checked,
+					"turn_lights_on_time" : document.getElementById('on').value, 
+					"turn_lights_off_time" : document.getElementById('off').value,
+					"auto_watering" : "man", //handled below
+					"lower_sat_bound": document.getElementById('lt').value, 
+					"water_when_light": document.getElementById('waterWhenLight').checked,
+					"pump_on_time": parseInt(document.getElementById('pump').value),
+					"water_time": document.getElementById('wt').value,
+					"water_when_light": document.getElementById('waterWhenLight').checked
+				};
+                
+                if (document.getElementById('sb').checked)
+					settings["auto_watering"] = "sat";
+				else if (document.getElementById('tb').checked)
+					settings["auto_watering"] = "time";
                             
-                x.send(data);
+                x.send(JSON.stringify(settings));
                 s.style.display = "none";
 			}
 
@@ -216,7 +231,6 @@
 			}
 
 			function updateHTML(x) {
-				console.log(x.response);
 				var saturation_level = x.response.split(",")[0]
 				var light_on = x.response.split(",")[1]
 				var update_time = x.response.split(",")[2]
