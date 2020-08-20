@@ -83,6 +83,13 @@
 		label {
 			font-size: 30px;
 		}
+		.day_label {
+			display: inline-block;
+			width: 13%;
+		}
+		input[name="water_days"] {
+			width: 11%;
+		}
 		h2 {
 			font-size: 40px;
 		}
@@ -145,7 +152,22 @@
 							<label>Manual</label><br>
 
 							<label>Watering Threshold: </label><input type="number" name="lower" min="0" max="100" id="lt"> %<br>
-							<label>Water Time</label><input type="time" name="watertime" step="1" id="wt"><br>
+							<label>Water on these days:</label><br>
+							<label class="day_label">Su</label>
+							<label class="day_label">M</label>
+							<label class="day_label">Tu</label>
+							<label class="day_label">W</label>
+							<label class="day_label">Th</label>
+							<label class="day_label">F</label>
+							<label class="day_label">Sa</label><br>
+							<input type="checkbox" name="water_days" value="6" id="days_Su">
+							<input type="checkbox" name="water_days" value="0" id="days_M">
+							<input type="checkbox" name="water_days" value="1" id="days_Tu">
+							<input type="checkbox" name="water_days" value="2" id="days_W">
+							<input type="checkbox" name="water_days" value="3" id="days_Th">
+							<input type="checkbox" name="water_days" value="4" id="days_F">
+							<input type="checkbox" name="water_days" value="5" id="days_Sa"><br>
+							<label>Water Time: </label><input type="time" name="watertime" step="1" id="wt"><br>
 							<label>Pump On-Time: </label><input type="number" name="pump" min="1" max="10" id="pump"> Secs<br>
 						</div>
                         <br>
@@ -164,7 +186,6 @@
 
 				x.onload = function() {
                     var settings = JSON.parse(x.response.trim('\r\n'));
-                    console.log(settings);
                     if (settings["auto_lights"]) {
                         document.getElementById('al').checked = true;
                     } else {
@@ -190,6 +211,10 @@
                     document.getElementById('waterWhenLight').checked = settings["water_when_light"] == "True";
                     document.getElementById('pump').value = settings["pump_on_time"];
                     
+                    for (var day of document.getElementsByName('water_days')) {
+						day.checked = settings["water_days"].includes(parseInt(day.value));
+					}
+                    
                     s = document.getElementById("settings");
                     s.style.display = s.style.display == "block" ? "none" : "block";
 				};
@@ -208,13 +233,18 @@
 					"water_when_light": document.getElementById('waterWhenLight').checked,
 					"pump_on_time": parseInt(document.getElementById('pump').value),
 					"water_time": document.getElementById('wt').value,
-					"water_when_light": document.getElementById('waterWhenLight').checked
+					"water_when_light": document.getElementById('waterWhenLight').checked,
+					"water_days": []
 				};
                 
                 if (document.getElementById('sb').checked)
 					settings["auto_watering"] = "sat";
 				else if (document.getElementById('tb').checked)
 					settings["auto_watering"] = "time";
+				
+				for (var day of document.getElementsByName('water_days')) {
+					if (day.checked) settings["water_days"].push(parseInt(day.value));
+				}
                             
                 x.send(JSON.stringify(settings));
                 s.style.display = "none";

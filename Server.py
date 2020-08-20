@@ -49,17 +49,9 @@ settings = {
     "auto_watering" : "man",
     "lower_sat_bound": 50.0, #threshold for determining if the plant needs to be watered
     "water_when_light": True, #only automatically water if the light is on
-    "pump_on_time": 3 #seconds the pump is turned on for at a time
+    "pump_on_time": 3, #seconds the pump is turned on for at a time
+    "water_days" : []
 }
-#auto_lights = False
-#turn_lights_on_time = "10:00:00"
-#turn_lights_off_time = "23:00:00"
-#auto_watering = "man"
-#lower_sat_bound = 50.0 #threshold for determining if the plant needs to be watered
-#water_time = "12:00:00" #time plant gets watered if time-based watering is selected
-#water_when_light = True #only automatically water if the light is on
-#pump_on_time = 3 #seconds the pump is turned on for at a time
-
 
 #code for handling the actual watering of the plant goes here
 def water():
@@ -130,7 +122,7 @@ def load_settings_and_dates_from_file():
     try:
         f = open("settings.dat", 'r')
         loaded_settings = json.loads(f.read())
-        update_settings(settings, False)
+        update_settings(loaded_settings, False)
         f.close()
     except:
         pass
@@ -149,7 +141,7 @@ def load_settings_and_dates_from_file():
         f.close()
     except:
         pass
-
+        
 
 #Appends current stats to data.csv
 def add_record(is_watering=False):
@@ -263,8 +255,8 @@ if __name__ == "__main__":
                     water()
                     update_saturation()
                     
-            #Water plant if time is right
-            if (settings["auto_watering"] == "time"):
+            #Water plant if time and weekday are right
+            if (settings["auto_watering"] == "time" and datetime.today().weekday() in settings["water_days"]):
                 current_time = datetime.strptime(datetime.now().strftime("%H:%M:%S"), '%H:%M:%S')
                 time_to_water = datetime.strptime(settings["water_time"], '%H:%M:%S')
                 
