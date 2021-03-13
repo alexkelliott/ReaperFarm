@@ -14,14 +14,16 @@ import json
 ################
 # Pi Variables #
 ################
-motor_pin = 8
-light_pin = 10
+motor_pin = 33
+light_pin1 = 10
+light_pin2 = 8
 soil_pin = 12
 
 #Setup pi pins
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(motor_pin, GPIO.OUT, initial=GPIO.HIGH)
-GPIO.setup(light_pin, GPIO.OUT, initial=GPIO.HIGH)
+GPIO.setup(light_pin1, GPIO.OUT, initial=GPIO.HIGH)
+GPIO.setup(light_pin2, GPIO.OUT, initial=GPIO.HIGH)
 GPIO.setup(soil_pin, GPIO.OUT)
 GPIO.setwarnings(False)
 
@@ -75,11 +77,13 @@ def change_light(action):
     global light_on
     if (action < 0 or (action == 0 and light_on)):
         light_on = False
-        GPIO.output(light_pin, GPIO.HIGH)
+        GPIO.output(light_pin1, GPIO.HIGH)
+        GPIO.output(light_pin2, GPIO.HIGH)
         
     else:
         light_on = True
-        GPIO.output(light_pin, GPIO.LOW)
+        GPIO.output(light_pin1, GPIO.LOW)
+        GPIO.output(light_pin2, GPIO.LOW)
     
 
 #Handles updating the saturation level
@@ -284,7 +288,8 @@ if __name__ == "__main__":
         server_thread.join()
         
         #Turn off all appliances
-        GPIO.output(light_pin, GPIO.HIGH)
+        GPIO.output(light_pin1, GPIO.HIGH)
+        GPIO.output(light_pin2, GPIO.HIGH)
         GPIO.output(motor_pin, GPIO.HIGH)
         GPIO.cleanup()
         
